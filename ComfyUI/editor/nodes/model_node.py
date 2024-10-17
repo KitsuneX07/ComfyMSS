@@ -143,7 +143,6 @@ class ModelNode(Node):
         self.output_format_group.setFont(font)
         self.output_format_group.setAttribute(Qt.WA_TranslucentBackground)
         self.output_format_group.setStyleSheet("QGroupBox { border: 0; }")
-
         # Initialize checkboxes
         self.wav_checkbox = QCheckBox("wav")
         self.flac_checkbox = QCheckBox("flac")
@@ -153,6 +152,7 @@ class ModelNode(Node):
         for checkbox in [self.wav_checkbox, self.flac_checkbox, self.mp3_checkbox]:
             checkbox.setFont(font)
             checkbox.setAutoExclusive(True)
+            checkbox.setStyleSheet("QCheckBox { color: white; }")
 
 
         # Set default selection
@@ -162,6 +162,7 @@ class ModelNode(Node):
         layout = QHBoxLayout()
         label = QLabel("Output Format:")
         label.setFont(font)
+        label.setStyleSheet("QLabel { color: white; }")
         layout.addWidget(label)
         layout.addWidget(self.wav_checkbox)
         layout.addWidget(self.flac_checkbox)
