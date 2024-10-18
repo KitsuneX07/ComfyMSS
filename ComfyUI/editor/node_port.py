@@ -157,16 +157,16 @@ class ParamPort(NodePort):
         self._default_value = default_value
         self.port_value = self._default_value
         self.has_value_set = True
-        self._line_edit = QLineEdit()
-        self._line_edit.setText(str(self._default_value))
+        self.line_edit = QLineEdit()
+        self.line_edit.setText(str(self._default_value))
 
         self._proxy_widget = QGraphicsProxyWidget(self)
-        self._proxy_widget.setWidget(self._line_edit)
+        self._proxy_widget.setWidget(self.line_edit)
 
         self._port_label_size = self._font_metrics.horizontalAdvance(self.port_label)
         self._port_textbox_width = 100
         self._port_width = self._port_label_size + self._port_textbox_width
-        self._line_edit.textChanged.connect(self.update_value)
+        self.line_edit.textChanged.connect(self.update_value)
 
     def boundingRect(self) -> QRectF:
         return QRectF(0, 0, self._port_width, self._port_icon_size)
@@ -180,13 +180,9 @@ class ParamPort(NodePort):
         self._proxy_widget.setGeometry(
             QRectF(self._port_label_size + 5, 0, self._port_textbox_width, self._port_icon_size))
 
-    def get_value(self):
-        return self._line_edit.text()
-    
     def update_value(self):
-        self.port_value = self._line_edit.text()
+        self.port_value = self.line_edit.text()
         self.has_value_set = True
-
     
 
 
@@ -199,18 +195,19 @@ class BoolPort(NodePort):
         self._default_value = default_value
 
         # 创建复选框并设置默认值
-        self._checkbox = QCheckBox()
-        self._checkbox.setChecked(self._default_value)
+        self.checkbox = QCheckBox()
+        self.checkbox.setChecked(self._default_value)
 
         # 使用 QGraphicsProxyWidget 添加到图形项中
         self._proxy_widget = QGraphicsProxyWidget(self)
-        self._proxy_widget.setWidget(self._checkbox)
+        self._proxy_widget.setWidget(self.checkbox)
 
         self._port_label_size = self._font_metrics.horizontalAdvance(self.port_label)
-        self._port_checkbox_width = self._checkbox.sizeHint().width()  # 根据复选框大小调整
+        self._port_checkbox_width = self.checkbox.sizeHint().width()  # 根据复选框大小调整
 
         # 重新计算端口宽度
         self._port_width = self._port_label_size + self._port_checkbox_width + 5
+        self.checkbox.stateChanged.connect(self.update_value)
 
     def boundingRect(self) -> QRectF:
         return QRectF(0, 0, self._port_width, self._port_icon_size)
@@ -227,5 +224,6 @@ class BoolPort(NodePort):
         self._proxy_widget.setGeometry(
             QRectF(self._port_label_size + 5, 0.5 * (self._port_icon_size - self._port_checkbox_width), self._port_checkbox_width, self._port_checkbox_width))
 
-    def get_value(self):
-        return self._checkbox.isChecked()
+    def update_value(self):
+        self.port_value = self.checkbox.isChecked()
+        self.has_value_set = True

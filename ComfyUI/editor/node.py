@@ -22,21 +22,18 @@ class Node(QGraphicsItem):
     def __init__(self, title = '', input_ports = None, param_ports = None, output_ports = None, bool_ports = None, scene = None, parent = None, upstream_node = None, downstream_nodes = None, index = 1):
         super().__init__(parent)
 
-        self.index = index
-        # self._model_type = None
-        # self._model = None
-        # self._model_config = None
-        self._title = title
-        self._scene = scene
-        self.input_ports = input_ports or []
-        self.param_ports = param_ports or []
-        self.output_ports = output_ports or []
-        self.bool_ports = bool_ports or []
-        self.upstream_node = upstream_node
-        self.downstream_nodes = downstream_nodes or []
-        self.upstream_edges = []
-        self.downstream_edges = []
-        self._node_width = self.node_width_min
+        self.index = index # index of the node in the scene, start at 0
+        self._title = title # node title
+        self._scene = scene # scene that the node belongs to
+        self.input_ports = input_ports or [] # input ports
+        self.param_ports = param_ports or [] # parameter ports
+        self.output_ports = output_ports or [] # output ports
+        self.bool_ports = bool_ports or [] # boolean ports
+        self.upstream_node = upstream_node # upstream node, only one
+        self.downstream_nodes = downstream_nodes or [] # downstream nodes, multiple or none
+        self.upstream_edges = [] # upstream edges, only one
+        self.downstream_edges = [] # downstream edges, multiple or none
+        self._node_width = self.node_width_min 
         self._node_height = self.node_height_min
 
         self._shadow = QGraphicsDropShadowEffect()
@@ -95,23 +92,24 @@ class Node(QGraphicsItem):
             for i, port in enumerate(port_list):
                 self.add_port(port, index = i)
 
-    def add_port(self, port: NodePort, index = 0):
-        self._node_width = max(self._node_width, port._port_width + self.port_padding * 2)
-        self._node_height = self.title_height + (max(len(self.input_ports), len(self.output_ports)) + len(self.param_ports) + len(self.bool_ports)) * (self.port_padding + port._port_icon_size) + self.port_padding
-        port.add_to_parent_node(self, self._scene)
+    def add_port(self, port: NodePort, index=0):
+        port_positions = {
+            NodePort.PORT_TYPE_INPUT: lambda: (self.port_padding, self.title_height + index * (self.port_padding + port._port_icon_size) + self.port_padding),
+            NodePort.PORT_TYPE_OUTPUT: lambda: (self._node_width - port._port_width - self.port_padding, self.title_height + index * (self.port_padding + port._port_icon_size) + self.port_padding),
+            NodePort.PORT_TYPE_PARAM: lambda: (self.port_padding, self.title_height + index * (self.port_padding + port._port_icon_size) + len(self.input_ports) * (self.port_padding + port._port_icon_size)),
+            NodePort.PORT_TYPE_BOOL: lambda: (self.port_padding, self.title_height + index * (self.port_padding + port._port_icon_size) + (len(self.param_ports) + len(self.input_ports)) * (self.port_padding + port._port_icon_size))
+        }
 
-        y_offset = self.title_height + index * (self.port_padding + port._port_icon_size) + self.port_padding
-        if port.port_type == NodePort.PORT_TYPE_INPUT:
-            port.setPos(self.port_padding, y_offset)
-        elif port.port_type == NodePort.PORT_TYPE_OUTPUT:
-            port.setPos(self._node_width - port._port_width - self.port_padding, y_offset)
-        elif port.port_type == NodePort.PORT_TYPE_PARAM:
-            port.setPos(self.port_padding, y_offset + max(len(self.input_ports), len(self.output_ports)) * (self.port_padding + port._port_icon_size))
-        elif port.port_type == NodePort.PORT_TYPE_BOOL:
-            port.setPos(self.port_padding, y_offset + (len(self.param_ports) + max(len(self.input_ports), len(self.output_ports))) * (self.port_padding + ParamPort()._port_icon_size))
-
+        position_calculator = port_positions.get(port.port_type)
+        if position_calculator:
+            x, y = position_calculator()
+            port.setPos(x, y)
+        else:
+            raise ValueError("Unsupported port type")
+        
     def remove_edge(self):
         for port in self.input_ports + self.output_ports + self.param_ports + self.bool_ports:
             print('Removing edge from port:', port)
             port.remove_edge()
             port.update()
+

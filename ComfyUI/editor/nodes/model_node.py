@@ -65,21 +65,12 @@ class ModelNode(Node):
         self._shadow_color = QColor('#aaeeee00')
         self.setFlags(
             QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemSendsGeometryChanges)
-        self.init_node_color()
+        super().init_node_color()
         self.init_title()
         self.update_ports()
         self.setup_output_format_selector()
         self.store_dirs = {}
         self.input_path = None
-
-    def init_node_color(self):
-        self._pen_selected = QPen(QColor('#ddffee00'))
-        self._brush_background = QBrush(QColor('#dd151515'))
-        self._title_bak_color = '#39c5bb'
-        title_color = QColor(self._title_bak_color)
-        self._pen_default = QPen(title_color)
-        title_color.setAlpha(200)
-        self._brush_title_back = QBrush(title_color)
 
     def init_title(self):
         self._title_font_size = EditorConfig.editor_node_title_font_size
@@ -184,7 +175,16 @@ class ModelNode(Node):
             return "flac"
         elif self.mp3_checkbox.isChecked():
             return "mp3"
-        return None  # In case none is selected
+        return "wav"  # In case none is selected
+    
+    def update_output_format(self, format):
+        if format == "wav":
+            self.wav_checkbox.setChecked(True)
+        elif format == "flac":
+            self.flac_checkbox.setChecked(True)
+        elif format == "mp3":
+            self.mp3_checkbox.setChecked(True)
+
 
 class MSSTModelNode(ModelNode):
     def __init__(self, model_class = None, model_name = None, model_type = None, input_ports = None, param_ports = None,
@@ -283,7 +283,22 @@ class MSSTModelNode(ModelNode):
                         else:
                             raise ValueError("One model node should only have one input path.")
 
- 
+    def save(self) -> dict:
+        data = {}
+        data['pos'] = [self.scenePos().x(), self.scenePos().y()]
+        data['model_class'] = self._model_class
+        data['model_name'] = self._model_name
+        data['model_type'] = self._model_type
+        data["index"] = self.index
+        data["params"] = {}
+        for port in self.param_ports:
+            data["params"][port.port_label] = port.port_value
+        data["bools"] = {}
+        for port in self.bool_ports:
+            data["bools"][port.port_label] = port.port_value
+        data["output_format"] = self.get_selected_format()
+        return data
+
 class VRModelNode(ModelNode):
     def __init__(self, model_class=None, model_name=None, input_ports=None, param_ports=None, output_ports=None, bool_ports=None, scene=None, parent=None, upstream_node=None, downstream_nodes=None):
         super().__init__(model_class, model_name, input_ports, param_ports, output_ports, bool_ports, scene, parent, upstream_node, downstream_nodes)
@@ -375,3 +390,18 @@ class VRModelNode(ModelNode):
                             parent_node.input_path = path
                         else:
                             raise ValueError("One model node should only have one input path.")
+                        
+    def save(self) -> dict:
+        data = {}
+        data['pos'] = [self.scenePos().x(), self.scenePos().y()]
+        data['model_class'] = self._model_class
+        data['model_name'] = self._model_name
+        data["index"] = self.index
+        data["params"] = {}
+        for port in self.param_ports:
+            data["params"][port.port_label] = port.port_value
+        data["bools"] = {}
+        for port in self.bool_ports:
+            data["bools"][port.port_label] = port.port_value
+        data["output_format"] = self.get_selected_format()
+        return data

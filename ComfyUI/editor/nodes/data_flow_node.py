@@ -41,12 +41,11 @@ class DataFlowNode(Node):
 
 class InputNode(DataFlowNode):
     def __init__(self, title = 'Input Folder', input_ports = None, param_ports = None, output_ports = None,
-                 bool_ports = None, scene = None, parent = None, upstream_node = None):
+                 bool_ports = None, scene = None, parent = None, upstream_node = None, input_path = "input/"):
+        self.input_path = input_path
         super().__init__(title, input_ports, param_ports, output_ports, bool_ports, scene, parent, upstream_node)
-        
 
     def update_ports(self):
-        self.input_path = "input/"
         param_port = ParamPort("Path", default_value = self.input_path)
         self.param_ports.append(param_port)
         output_port = OutputPort("")
@@ -65,15 +64,22 @@ class InputNode(DataFlowNode):
                 downstream_port.parent_node.input_path = self.input_path
         print("Input Path:", self.input_path)
 
+    def save(self) -> dict:
+        data = {}
+        data['model_class'] = 'InputNode'
+        data['pos'] = [self.scenePos().x(), self.scenePos().y()]
+        data["index"] = self.index
+        data["input_path"] = self.param_ports[0].port_value
+        return data
+
 
 class OutputNode(DataFlowNode):
     def __init__(self, title = 'Output Folder', input_ports = None, param_ports = None, output_ports = None,
-                 bool_ports = None, scene = None, parent = None, upstream_node = None):
+                 bool_ports = None, scene = None, parent = None, upstream_node = None, output_path = "output/"):
+        self.output_path = output_path
         super().__init__(title, input_ports, param_ports, output_ports, bool_ports, scene, parent, upstream_node)
-        
-
+    
     def update_ports(self):
-        self.output_path = "output/"
         input_port = InputPort("")
         self.input_ports.append(input_port)
         input_port.add_to_parent_node(self, self._scene)
@@ -88,3 +94,10 @@ class OutputNode(DataFlowNode):
         self.output_path = self.param_ports[0].port_value
         print("Output Path:", self.output_path)
 
+    def save(self) -> dict:
+        data = {}
+        data['model_class'] = 'OutputNode'
+        data['pos'] = [self.scenePos().x(), self.scenePos().y()]
+        data["index"] = self.index
+        data["output_path"] = self.param_ports[0].port_value
+        return data

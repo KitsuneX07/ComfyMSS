@@ -87,6 +87,13 @@ class NodeEdge(BaseEdge):
         super().update_edge_path()
 
 
+    def save(self) -> dict:
+        data = {}
+        data["source_port"] = [self._source_port.parent_node.index, self._source_port.port_label]
+        data["des_port"] = [self._des_port.parent_node.index, self._des_port.port_label]
+        return data
+
+
 class DraggingEdge(BaseEdge):
 
     def __init__(self, source_pos, des_pos, drag_from_source = True, scene = None, edge_color = '#ffffff', parent = None):

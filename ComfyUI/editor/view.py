@@ -7,6 +7,7 @@ from node_port import NodePort, InputPort, OutputPort
 from nodes.model_node import MSSTModelNode, VRModelNode, ModelNode
 from nodes.data_flow_node import InputNode, OutputNode
 import json
+import os
 
 
 class ComfyUIView(QGraphicsView):
@@ -240,13 +241,7 @@ class ComfyUIView(QGraphicsView):
         self.input_node = None
         
     def debug(self):
-        for node in self.nodes:
-            print('Node:')
-            print(node.index)
-            print(node)
-            print(node.downstream_nodes)
-            print(node.downstream_edges)
-            print('\n')
+        self.load('./presets/1.preset')
 
 
     def contextMenuEvent(self, event):
@@ -256,6 +251,7 @@ class ComfyUIView(QGraphicsView):
         context_menu.addAction("重置缩放", self.reset_scale)
         context_menu.addAction("清空编辑器", self.clear_editor)
         context_menu.addAction("运行", self.run)
+        context_menu.addAction("保存", self.save)
         context_menu.addAction("debug", self.debug)
 
         context_menu.exec(event.globalPos())
@@ -277,3 +273,95 @@ class ComfyUIView(QGraphicsView):
 
         dfs(self.input_node)
             
+    def save(self) -> None:
+        data = {}
+        data['nodes'] = {}
+        for node in self.nodes:
+            data['nodes'][node.index] = node.save()
+        data['edges'] = {}
+        edge_index = 0
+        for edge in self.edges:
+            data['edges'][edge_index] = edge.save()
+            edge_index += 1
+        print(data)
+        if not os.path.exists('./presets'):
+            os.makedirs('./presets')
+        with open('./presets/1.preset', 'w') as f:
+            json.dump(data, f, indent=4)
+            print(f'Saved to {os.path.abspath("./presets/1.preset")}')
+
+    def load(self, file_path: str) -> None:
+        self.clear_editor()
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+            nodes = data.get('nodes')
+            edges = data.get('edges')
+            for index, node_data in nodes.items():
+                model_class = node_data.get('model_class')
+                if model_class == 'InputNode':
+                    node = InputNode(input_path = node_data.get('input_path'))
+                    self.input_node = node
+                elif model_class == 'OutputNode':
+                    node = OutputNode(output_path = node_data.get('output_path'))
+                elif model_class == 'vr_models':
+                    node = VRModelNode(
+                        model_class = node_data.get('model_class'),
+                        model_name = node_data.get('model_name')
+                        )
+                    for param in node_data.get('params'):
+                        for param_port in node.param_ports:
+                            if param_port.port_label == param:
+                                param_port.line_edit.setText(str(node_data.get('params').get(param)))
+                                break
+                    
+                    for bool in node_data.get('bools'):
+                        for bool_port in node.bool_ports:
+                            if bool_port.port_label == bool:
+                                value = node_data.get('bools').get(bool)
+                                if value:
+                                    bool_port.checkbox.setChecked(True)
+                                break
+
+                    output_format = node_data.get('output_format')
+                    node.update_output_format(output_format)
+
+                else:
+                    node = MSSTModelNode(
+                        model_class = node_data.get('model_class'),
+                        model_name = node_data.get('model_name'),
+                        model_type = node_data.get('model_type')
+                        )
+                    for param in node_data.get('params'):
+                        for param_port in node.param_ports:
+                            if param_port.port_label == param:
+                                param_port.line_edit.setText(str(node_data.get('params').get(param)))
+                                break
+                    
+                    for bool in node_data.get('bools'):
+                        for bool_port in node.bool_ports:
+                            if bool_port.port_label == bool:
+                                value = node_data.get('bools').get(bool)
+                                if value:
+                                    bool_port.checkbox.setChecked(True)
+                                break
+
+                    output_format = node_data.get('output_format')
+                    node.update_output_format(output_format)
+
+                self.add_node(node, pos = node_data.get('pos'), index = index)
+
+            for index, edge_data in edges.items():
+                source_node_index, source_port_label = edge_data.get('source_port')
+                des_node_index, des_port_label = edge_data.get('des_port')
+                for port in self.nodes[source_node_index].output_ports:
+                    if port.port_label == source_port_label:
+                        source_port = port
+                        break
+
+                for port in self.nodes[des_node_index].input_ports:
+                    if port.port_label == des_port_label:
+                        des_port = port
+                        break
+                
+                edge = NodeEdge(source_port, des_port, self._scene)
+                self.edges.append(edge)
