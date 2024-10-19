@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication
-from PySide6.QtGui import QFont, QDrag
-from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication, QLabel, QApplication, QToolBar, QFileDialog, QMessageBox
+from PySide6.QtGui import QFont, QDrag, QAction
+from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine
 from view import ComfyUIView
 from scene import ComfyUIScene
 from nodes.model_node import MSSTModelNode, VRModelNode
@@ -31,24 +31,35 @@ class ComfyUIEditor(QWidget):
     def setup_editor(self):
         # 设置窗口大小和标题
         self.setGeometry(300, 200, 1440, 1080)
+        
+        self.scene = ComfyUIScene()
+        self.view = ComfyUIView(self.scene, self)
+        
+        current_font = QApplication.font()
+        current_font.setPointSize(16)
+        self.setFont(current_font)
+        print("当前字体:", current_font.family(), "大小:", current_font.pointSize())
         self.setWindowTitle("ComfyMSS Editor")
 
         # 创建主布局
         self.layout = QVBoxLayout(self)
-
+        self.add_toolbar()
         # 创建Splitter，用于调整树形控件和场景视图的宽度
         splitter = QSplitter(Qt.Horizontal, self)
         self.layout.addWidget(splitter)
 
         # 创建场景和视图，并添加到Splitter中
-        self.scene = ComfyUIScene()
-        self.view = ComfyUIView(self.scene, self)
+        
         self.view.setAcceptDrops(True)  # 启用接受拖放
+        # 创建工具栏
+        
+
         splitter.addWidget(self.view)
 
         # 创建树形控件
         self.tree = QTreeWidget(self)
-        self.tree.setHeaderLabel("可用模型")
+        self.tree.setHeaderLabel("Node list")
+        self.tree.setStyleSheet("QHeaderView::section{background-color: #313131; color: white; border: 0px; font-size: 16px; font-family: Consolas;}")
         self.tree.setDragEnabled(True)  # 启用拖放
         splitter.addWidget(self.tree)
 
@@ -56,14 +67,10 @@ class ComfyUIEditor(QWidget):
         self.tree.startDrag = self.start_drag  # 重写startDrag方法
 
         # 设置字体
-        font = QFont("Segoe UI", 12)
-        self.tree.setFont(font)
-        self.tree.setStyleSheet("""
-            QTreeWidget::item {
-                height: 30px;  # 设置每行高度
-            }
-        """)
-
+        current_font = QApplication.font()
+        new_font = QFont(current_font.family(), 16)
+        self.tree.setFont(new_font)        
+        self.tree.setStyleSheet("QTreeWidget::item{margin: 1px;}")
         self.populate_tree()
         self.show()
 
@@ -90,7 +97,7 @@ class ComfyUIEditor(QWidget):
 
         # 添加输入和输出节点
         io_category_item = QTreeWidgetItem(self.tree)
-        io_category_item.setText(0, "输入和输出")
+        io_category_item.setText(0, "I/O")
 
         input_node_item = QTreeWidgetItem(io_category_item)
         input_node_item.setText(0, "Input Node")
@@ -120,3 +127,38 @@ class ComfyUIEditor(QWidget):
         drag = QDrag(self)
         drag.setMimeData(mime_data)
         result = drag.exec(Qt.MoveAction)
+        
+    def add_toolbar(self):
+        toolbar = QToolBar()
+        self.layout.addWidget(toolbar)
+        open_action = QAction("Open", self)
+        open_action.triggered.connect(self.load_file)
+        toolbar.addAction(open_action)
+
+        save_action = QAction("Save", self)
+        save_action.triggered.connect(self.save_file)
+        toolbar.addAction(save_action)
+        
+        run_action = QAction("Run", self)
+        run_action.triggered.connect(self.view.run)
+        toolbar.addAction(run_action)
+
+        close_action = QAction("Close", self)
+        close_action.triggered.connect(self.close)
+        toolbar.addAction(close_action)
+        
+    def load_file(self):
+        defalut_path = "./presets"
+        file_path, _ = QFileDialog.getOpenFileName(self, "打开文件", defalut_path, "Preset Files (*.preset);;All Files (*)")
+        if file_path:
+            self.view.load(file_path)
+            QMessageBox.information(self, "Load", f"Loading preset from {file_path}")
+
+    def save_file(self):
+        defalut_path = "./presets"
+        file_path, _ = QFileDialog.getSaveFileName(self, "保存文件", defalut_path, "Preset Files (*.preset);;All Files (*)")
+        if file_path:
+            self.view.save(file_path)
+            QMessageBox.information(self, "Save", f"Saving preset to {file_path}")
+
+

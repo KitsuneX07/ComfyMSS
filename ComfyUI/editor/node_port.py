@@ -2,7 +2,7 @@ import sys
 
 sys.path.append('.')
 
-from PySide6.QtWidgets import QGraphicsItem, QLineEdit, QGraphicsProxyWidget, QCheckBox
+from PySide6.QtWidgets import QGraphicsItem, QLineEdit, QGraphicsProxyWidget, QCheckBox, QApplication
 from PySide6.QtGui import QColor, QPen, QBrush, QPainter, QFont, QFontMetrics
 from PySide6.QtCore import Qt, QRectF, QPointF
 from config import EditorConfig, NodeConfig
@@ -28,9 +28,10 @@ class NodePort(QGraphicsItem):
         self._pen_default = QPen(QColor(self._port_color))
         self._pen_default.setWidthF(1.5)
         self._brush_default = QBrush(QColor(self._port_color))
-
-        # 字体和大小
-        self._port_font = QFont(EditorConfig.editor_node_pin_label_font, EditorConfig.editor_node_pin_label_size)
+        
+        current_font = QApplication.font()
+        new_font = QFont(current_font.family(), 14)
+        self._port_font = new_font
         self._font_metrics = QFontMetrics(self._port_font)
         self._port_icon_size = NodeConfig.port_icon_size  # 端口图标大小
         self._port_label_size = self._font_metrics.horizontalAdvance(self.port_label)  # 端口标签宽度

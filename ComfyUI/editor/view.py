@@ -8,6 +8,8 @@ from nodes.model_node import MSSTModelNode, VRModelNode, ModelNode
 from nodes.data_flow_node import InputNode, OutputNode
 import json
 import os
+import shutil
+TEMP_PATH = "tmpdir"
 
 
 class ComfyUIView(QGraphicsView):
@@ -72,6 +74,8 @@ class ComfyUIView(QGraphicsView):
             self.middle_button_pressed(event)
         elif event.button() == Qt.LeftButton:
             self.left_button_pressed(event)
+        elif event.button() == Qt.RightButton:
+            self.right_button_pressed(event)
         else:
             super().mousePressEvent(event)
 
@@ -80,7 +84,10 @@ class ComfyUIView(QGraphicsView):
             self.middle_button_released(event)
         elif event.button() == Qt.LeftButton:
             self.left_button_released(event)
-        super().mouseReleaseEvent(event)
+        elif event.button() == Qt.RightButton:
+            self.right_button_released(event)
+        else:
+            super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MiddleButton:
@@ -172,10 +179,13 @@ class ComfyUIView(QGraphicsView):
         super().mouseReleaseEvent(event)
 
     def right_button_pressed(self, event):
-        pass
+        if self._scene.selectedItems():
+            return
+        
+        super().mousePressEvent(event)
 
     def right_button_released(self, event):
-        pass
+        super().mouseReleaseEvent(event)
 
     def set_menu_widget(self, widget):
         self._menu_widget = widget
@@ -246,12 +256,11 @@ class ComfyUIView(QGraphicsView):
 
     def contextMenuEvent(self, event):
         context_menu = QMenu(self)
-        context_menu.setFont(QFont("Consolas", 10))
-        context_menu.addAction("删除选定项", self.remove_selected_items)
-        context_menu.addAction("重置缩放", self.reset_scale)
-        context_menu.addAction("清空编辑器", self.clear_editor)
-        context_menu.addAction("运行", self.run)
-        context_menu.addAction("保存", self.save)
+        context_menu.addAction("delete selected items", self.remove_selected_items)
+        context_menu.addAction("reset scale", self.reset_scale)
+        context_menu.addAction("clear editor", self.clear_editor)
+        context_menu.addAction("run", self.run)
+        context_menu.addAction("save", self.save)
         context_menu.addAction("debug", self.debug)
 
         context_menu.exec(event.globalPos())
@@ -272,8 +281,10 @@ class ComfyUIView(QGraphicsView):
                 dfs(downstream_node)
 
         dfs(self.input_node)
+        print('Done')
+        shutil.rmtree(TEMP_PATH, ignore_errors=True)
             
-    def save(self) -> None:
+    def save(self, file_path:str) -> None:
         data = {}
         data['nodes'] = {}
         for node in self.nodes:
@@ -284,9 +295,7 @@ class ComfyUIView(QGraphicsView):
             data['edges'][edge_index] = edge.save()
             edge_index += 1
         print(data)
-        if not os.path.exists('./presets'):
-            os.makedirs('./presets')
-        with open('./presets/1.preset', 'w') as f:
+        with open(file_path, 'w') as f:
             json.dump(data, f, indent=4)
             print(f'Saved to {os.path.abspath("./presets/1.preset")}')
 
@@ -353,12 +362,12 @@ class ComfyUIView(QGraphicsView):
             for index, edge_data in edges.items():
                 source_node_index, source_port_label = edge_data.get('source_port')
                 des_node_index, des_port_label = edge_data.get('des_port')
-                for port in self.nodes[source_node_index].output_ports:
+                for port in self.nodes[int(source_node_index)].output_ports:
                     if port.port_label == source_port_label:
                         source_port = port
                         break
 
-                for port in self.nodes[des_node_index].input_ports:
+                for port in self.nodes[int(des_node_index)].input_ports:
                     if port.port_label == des_port_label:
                         des_port = port
                         break

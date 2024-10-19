@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QBrush, QFont
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsDropShadowEffect, QGraphicsTextItem
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsDropShadowEffect, QGraphicsTextItem, QApplication
 
 from ComfyUI.editor.node_port import InputPort, OutputPort, ParamPort, BoolPort, NodePort
 from ComfyUI.editor.node import Node
@@ -25,13 +25,13 @@ class DataFlowNode(Node):
         self._brush_title_back = QBrush(title_color)
 
     def init_title(self):
-        self._title_font_size = EditorConfig.editor_node_title_font_size
-        self._title_font = QFont(EditorConfig.editor_node_title_font, self._title_font_size)
+        current_font = QApplication.font()
+        new_font = QFont(current_font.family(), 16)
+        self._title_font = new_font
         self._title_color = Qt.white
-
+        self._title_font_size = 16
         self._title_line = QGraphicsTextItem(self)
         self._title_line.setPlainText(self._title)
-        self._title_line.setFont(self._title_font)
         self._title_line.setDefaultTextColor(self._title_color)
         self._title_line.setPos(self.title_padding, self.title_padding)
         title_width = self._title_font_size * len(self._title) + 4 * self.title_padding

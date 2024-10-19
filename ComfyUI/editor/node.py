@@ -35,6 +35,7 @@ class Node(QGraphicsItem):
         self.downstream_edges = [] # downstream edges, multiple or none
         self._node_width = self.node_width_min 
         self._node_height = self.node_height_min
+        self.init_node_color()
 
         self._shadow = QGraphicsDropShadowEffect()
         self._shadow.setOffset(0, 0)

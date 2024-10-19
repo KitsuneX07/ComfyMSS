@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QBrush, QFont
 from PySide6.QtWidgets import QGraphicsProxyWidget, QCheckBox, QLabel, QHBoxLayout, QGraphicsDropShadowEffect, \
-    QGraphicsTextItem, QGraphicsItem, QGroupBox
+    QGraphicsTextItem, QGraphicsItem, QGroupBox, QApplication
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
@@ -73,10 +73,11 @@ class ModelNode(Node):
         self.input_path = None
 
     def init_title(self):
-        self._title_font_size = EditorConfig.editor_node_title_font_size
-        self._title_font = QFont(EditorConfig.editor_node_title_font, self._title_font_size)
+        current_font = QApplication.font()
+        new_font = QFont(current_font.family(), 16)
+        self._title_font = new_font
         self._title_color = Qt.white
-
+        self._title_font_size = 16
         self._title_line1, self._title_line2 = QGraphicsTextItem(self), QGraphicsTextItem(self)
         self._title_line1.setPlainText(self._model_class)
         self._friendly_name = self._model_name[:30] + '...' if len(self._model_name) > 30 else self._model_name
@@ -86,9 +87,7 @@ class ModelNode(Node):
         #     title_line.setFont(self._title_font)
         #     title_line.setDefaultTextColor(self._title_color)
 
-        self._title_line1.setFont(self._title_font)
         self._title_line1.setDefaultTextColor(self._title_color)
-        self._title_line2.setFont(QFont(EditorConfig.editor_node_title_font, self._title_font_size - 3))
         self._title_line2.setDefaultTextColor(self._title_color)
 
         self._title_line1.setPos(self.title_padding, self.title_padding)
@@ -105,7 +104,7 @@ class ModelNode(Node):
                 self.add_port(port, index = i)
 
     def add_port(self, port: NodePort, index = 0):
-        self._node_width = max(self._node_width, port._port_width + self.port_padding * 2)
+        self._node_width = max(self._node_width, port._port_width + self.port_padding * 3)
         self._node_height = self.title_height + (
                 max(len(self.input_ports), len(self.output_ports)) + len(self.param_ports) + len(
             self.bool_ports)) * (self.port_padding + port._port_icon_size) + self.port_padding
@@ -123,6 +122,7 @@ class ModelNode(Node):
             port.setPos(self.port_padding,
                         y_offset + (len(self.param_ports) + max(len(self.input_ports), len(self.output_ports))) * (
                                 self.port_padding + ParamPort()._port_icon_size))
+   
 
     def setup_output_format_selector(self):
         # Create a group box for output format selection
@@ -131,7 +131,6 @@ class ModelNode(Node):
         # Set font size to be -6 of other components
         font = self.output_format_group.font()
         font.setPointSize(EditorConfig.editor_node_title_font_size - 6)
-        self.output_format_group.setFont(font)
         self.output_format_group.setAttribute(Qt.WA_TranslucentBackground)
         self.output_format_group.setStyleSheet("QGroupBox { border: 0; }")
         # Initialize checkboxes
@@ -141,9 +140,9 @@ class ModelNode(Node):
 
         # Apply the same font modifications to each checkbox
         for checkbox in [self.wav_checkbox, self.flac_checkbox, self.mp3_checkbox]:
-            checkbox.setFont(font)
             checkbox.setAutoExclusive(True)
             checkbox.setStyleSheet("QCheckBox { color: white; }")
+            checkbox.setFont(font)
 
 
         # Set default selection
@@ -152,8 +151,8 @@ class ModelNode(Node):
         # Layout for checkboxes
         layout = QHBoxLayout()
         label = QLabel("Output Format:")
-        label.setFont(font)
         label.setStyleSheet("QLabel { color: white; }")
+        label.setFont(font)
         layout.addWidget(label)
         layout.addWidget(self.wav_checkbox)
         layout.addWidget(self.flac_checkbox)
@@ -229,7 +228,7 @@ class MSSTModelNode(ModelNode):
         # 更新配置文件中的数值
         logger.info("Updating parameters...")
         for param_port in self.param_ports:
-            self._config.inference[param_port.port_label] = param_port.port_value
+            self._config.inference[param_port.port_label] = int(param_port.port_value)
             logger.info(f"Previous value of {param_port.port_label}: {self._config.inference[param_port.port_label]}, ",
                         f"changed to {param_port.port_value}")
 
@@ -278,7 +277,7 @@ class MSSTModelNode(ModelNode):
                     else:
                         path = os.path.join(TEMP_PATH, f"model_node_{parent_node.index}", output_port.port_label)
                         self.store_dirs[output_port.port_label].append(path)
-                        if parent_node.input_path == None:
+                        if parent_node.input_path == None or parent_node.input_path == path:
                             parent_node.input_path = path
                         else:
                             raise ValueError("One model node should only have one input path.")
@@ -332,12 +331,12 @@ class VRModelNode(ModelNode):
 
             # 更新配置参数
             vr_params = {
-                "batch_size": self.find_port_value("Batch Size"),
-                "window_size": self.find_port_value("Window Size"),
-                "aggression": self.find_port_value("Aggression"),
+                "batch_size": int(self.find_port_value("Batch Size")),
+                "window_size": int(self.find_port_value("Window Size")),
+                "aggression": int(self.find_port_value("Aggression")),
                 "enable_tta": self.find_port_value("Enable Tta"),
                 "enable_post_process": self.find_port_value("Enable Post Process"),
-                "post_process_threshold": self.find_port_value("Post Process Threshold"),
+                "post_process_threshold": float(self.find_port_value("Post Process Threshold")),
                 "high_end_process": self.find_port_value("High End Process")
             }
             logger.info(f"VR parameters: {vr_params}")
@@ -346,7 +345,7 @@ class VRModelNode(ModelNode):
             logger.info(f"Input path: {self.input_path}")
             logger.info(f"Output path: {self.store_dirs}")
 
-            normalization_threshold = self.find_port_value("Normalization")
+            normalization_threshold = float(self.find_port_value("Normalization"))
             logger.info(f"Normalization threshold: {normalization_threshold}")
 
             invert_spect = self.find_port_value("Invert Spect")
@@ -386,7 +385,7 @@ class VRModelNode(ModelNode):
                     else:
                         path = os.path.join(TEMP_PATH, f"model_node_{parent_node.index}", output_port.port_label)
                         self.store_dirs[output_port.port_label].append(path)
-                        if parent_node.input_path == None:
+                        if parent_node.input_path == None or parent_node.input_path == path:
                             parent_node.input_path = path
                         else:
                             raise ValueError("One model node should only have one input path.")
