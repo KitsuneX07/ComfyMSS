@@ -18,27 +18,13 @@ from ComfyUI.editor.config import EditorConfig, NodeConfig
 from ComfyUI.editor.node_port import InputPort, OutputPort, ParamPort, BoolPort, NodePort
 from ComfyUI.editor.node import Node
 from ComfyUI.editor.nodes.data_flow_node import OutputNode, InputNode
-from comfy_infer import ComfyMSST, ComfyVR
+from inference.comfy_infer import ComfyMSST, ComfyVR
 
 os.chdir(os.path.join(os.getcwd(), '../../'))
 
 TEMP_PATH = "tmpdir"
 
 import logging
-
-# 清除原有的日志处理器
-logger = logging.getLogger(__name__)
-logger.handlers = []  # 移除所有现有的处理器
-
-# 添加自定义处理器
-custom_log_handler = logging.StreamHandler()
-custom_log_formatter = logging.Formatter(fmt="%(message)s")  # 只输出消息本身
-custom_log_handler.setFormatter(custom_log_formatter)
-logger.addHandler(custom_log_handler)
-
-logger.setLevel(logging.CRITICAL)
-logger.info("自定义信息日志")
-logger.warning("自定义警告日志")
 
 
 class ModelNode(Node):
@@ -224,19 +210,14 @@ class MSSTModelNode(ModelNode):
         # print('bool_ports:', self.bool_ports)
 
     def run(self):
-        logger.info(f"Running MSST model node {self._model_name}...")
-        # 更新配置文件中的数值
-        logger.info("Updating parameters...")
+        logging.info(f"Running MSST model node {self._model_name}...")
+        logging.info("Updating parameters...")
         for param_port in self.param_ports:
             self._config.inference[param_port.port_label] = int(param_port.port_value)
-            logger.info(f"Previous value of {param_port.port_label}: {self._config.inference[param_port.port_label]}, ",
-                        f"changed to {param_port.port_value}")
 
         for bool_port in self.bool_ports:
             if bool_port.port_label == "Normalize":
                 self._config.inference['normalize'] = bool_port.port_value
-                logger.info(f"Previous value of Normalize: {self._config.inference['normalize']}, ",
-                            f"changed to {bool_port.port_value}")
             elif bool_port.port_label == "Use TTA":
                 use_tta = bool_port.port_value
 
@@ -247,23 +228,27 @@ class MSSTModelNode(ModelNode):
             else:
                 yaml.dump(self._config.to_dict(), f)
 
-        logger.info("Parameters written back to config file successfully, start inferencing...")
+        logging.info("Parameters written back to config file successfully, start inferencing...")
 
         self.generate_output_path()
-        logger.info(f"store_dirs: {self.store_dirs}")
-        logger.info(f"input_path: {self.input_path}")
+        logging.info(f"store_dirs: {self.store_dirs}")
+        logging.info(f"input_path: {self.input_path}")
 
         msst_separate = ComfyMSST(
             model_type=self._model_type,
             config_path=self._config_path,
+            device='auto',
+            device_ids=[0],
             model_path=os.path.join("./pretrain", self._model_class, self._model_name),
             output_format=self.get_selected_format(),
             store_dirs=self.store_dirs,
             use_tta=use_tta,
+            debug=True
         )
 
         msst_separate.process_folder(input_folder=self.input_path)
-        logger.info("Inference completed successfully.")
+        logging.info("Inference completed successfully.")
+        msst_separate.del_cache()
 
     def generate_output_path(self) -> None:
         for output_port in self.output_ports:
@@ -310,7 +295,6 @@ class VRModelNode(ModelNode):
         self.output_ports.append(OutputPort(model_map[self._model_name]["primary_stem"]))
         self.output_ports.append(OutputPort(model_map[self._model_name]["secondary_stem"]))
         self.param_ports = [
-            ParamPort("Normalization", default_value=0.9),
             ParamPort("Batch Size", default_value=4),
             ParamPort("Window Size", default_value=512),
             ParamPort("Aggression", default_value=5),
@@ -326,7 +310,7 @@ class VRModelNode(ModelNode):
 
     def run(self):
         try:
-            logger.info("Updating parameters...")
+            logging.info("Updating parameters...")
             
 
             # 更新配置参数
@@ -339,35 +323,33 @@ class VRModelNode(ModelNode):
                 "post_process_threshold": float(self.find_port_value("Post Process Threshold")),
                 "high_end_process": self.find_port_value("High End Process")
             }
-            logger.info(f"VR parameters: {vr_params}")
+            logging.info(f"VR parameters: {vr_params}")
 
             self.generate_output_path()
-            logger.info(f"Input path: {self.input_path}")
-            logger.info(f"Output path: {self.store_dirs}")
-
-            normalization_threshold = float(self.find_port_value("Normalization"))
-            logger.info(f"Normalization threshold: {normalization_threshold}")
+            logging.info(f"Input path: {self.input_path}")
+            logging.info(f"Output path: {self.store_dirs}")
 
             invert_spect = self.find_port_value("Invert Spect")
-            logger.info(f"Invert Spect: {invert_spect}")
+            logging.info(f"Invert Spect: {invert_spect}")
 
             use_cpu = self.find_port_value("Use CPU")
 
             vr_separator = ComfyVR(
                 model_file=f"pretrain/VR_Models/{self._model_name}",
                 output_format=self.get_selected_format(),
-                normalization_threshold=normalization_threshold,
                 invert_using_spec=invert_spect,
                 use_cpu=use_cpu,
                 vr_params=vr_params,
-                store_dirs=self.store_dirs
+                output_dir=self.store_dirs,
+                debug=True
             )
 
-            vr_separator.separate(folder_path=self.input_path)
-            logger.info("Inference completed successfully.")
+            vr_separator.process_folder(self.input_path)
+            logging.info("Inference completed successfully.")
+            vr_separator.del_cache()
 
         except Exception as e:
-            print(f"Error during VR model execution: {e}")
+            logging.error(f"Error during VR model execution: {e}")
 
     def find_port_value(self, port_label):
         port = next((p for p in self.param_ports + self.bool_ports if p.port_label == port_label), None)

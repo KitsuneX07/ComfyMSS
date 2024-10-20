@@ -17,6 +17,12 @@ results/
 test.py
 config_unofficial/
 cache/
+ComfyUI/style/
+input/
+output/
+presets/
+tmpdir/
+logs/
 
 !pretrain/*.json
 !.gitkeep

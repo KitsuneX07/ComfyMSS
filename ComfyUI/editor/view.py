@@ -6,16 +6,19 @@ from node import Node
 from node_port import NodePort, InputPort, OutputPort
 from nodes.model_node import MSSTModelNode, VRModelNode, ModelNode
 from nodes.data_flow_node import InputNode, OutputNode
+from thread import InferenceThread
 import json
 import os
 import shutil
+import logging
 TEMP_PATH = "tmpdir"
 
 
 class ComfyUIView(QGraphicsView):
-    def __init__(self, scene, parent=None):
+    def __init__(self, scene, log_window, parent=None):
         super().__init__(parent)
         self._scene = scene
+        self.log_window = log_window
         self.edges = []
         self.nodes = []
         self.input_node = None
@@ -251,7 +254,9 @@ class ComfyUIView(QGraphicsView):
         self.input_node = None
         
     def debug(self):
-        self.load('./presets/1.preset')
+        for i in range(10):
+            self.run()
+            shutil.rmtree('output', ignore_errors=True)
 
 
     def contextMenuEvent(self, event):
@@ -266,23 +271,24 @@ class ComfyUIView(QGraphicsView):
         context_menu.exec(event.globalPos())
 
     def run(self):
-        import logging
-        logging.basicConfig(level=logging.INFO)
-        logging.info('Running editor')
-        if self.input_node is None:
-            logging.error('No input node was added!')
-            return
 
-        def dfs(node: Node):
-            if node is None:
-                return
-            node.run()
-            for downstream_node in node.downstream_nodes:
-                dfs(downstream_node)
+        self.inference_thread = None
 
-        dfs(self.input_node)
-        print('Done')
         shutil.rmtree(TEMP_PATH, ignore_errors=True)
+
+        if self.inference_thread is not None and self.inference_thread.isRunning():
+            logging.error('Previous thread is still running.')
+            return
+        
+        self.inference_thread = InferenceThread(self.input_node)
+        self.inference_thread.log_signal.connect(self.add_log)
+
+        # 启动线程
+        self.inference_thread.start()
+
+    def add_log(self, message):
+        self.log_window.append(message)
+        self.log_window.ensureCursorVisible()    
             
     def save(self, file_path:str) -> None:
         data = {}
@@ -294,7 +300,6 @@ class ComfyUIView(QGraphicsView):
         for edge in self.edges:
             data['edges'][edge_index] = edge.save()
             edge_index += 1
-        print(data)
         with open(file_path, 'w') as f:
             json.dump(data, f, indent=4)
             print(f'Saved to {os.path.abspath("./presets/1.preset")}')

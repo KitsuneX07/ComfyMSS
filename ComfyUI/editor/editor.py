@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication, QLabel, QApplication, QToolBar, QFileDialog, QMessageBox
-from PySide6.QtGui import QFont, QDrag, QAction
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication, QLabel, QApplication, QToolBar, QFileDialog, QMessageBox, QTextEdit, QDockWidget
+from PySide6.QtGui import QFont, QDrag, QAction, QFontDatabase
 from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine
 from view import ComfyUIView
 from scene import ComfyUIScene
@@ -8,6 +8,18 @@ from nodes.data_flow_node import InputNode, OutputNode
 import json
 import os
 import shutil
+import logging
+
+
+class QTextEditLogger(logging.Handler):
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.text_edit.append(msg)
+        self.text_edit.ensureCursorVisible()
 
 
 class ComfyUIEditor(QWidget):
@@ -31,10 +43,14 @@ class ComfyUIEditor(QWidget):
     def setup_editor(self):
         # 设置窗口大小和标题
         self.setGeometry(300, 200, 1440, 1080)
-        
+
         self.scene = ComfyUIScene()
-        self.view = ComfyUIView(self.scene, self)
-        
+        self.log_window = QTextEdit(self)
+        self.log_window.setReadOnly(True)
+        self.log_window.setStyleSheet("color: white;")  # 设置字体为白色
+        self.log_window.setFont(QFont('Courier New', 10))  # 设置等宽字体
+        self.view = ComfyUIView(self.scene, self.log_window, self)
+
         current_font = QApplication.font()
         current_font.setPointSize(16)
         self.setFont(current_font)
@@ -43,35 +59,46 @@ class ComfyUIEditor(QWidget):
 
         # 创建主布局
         self.layout = QVBoxLayout(self)
-        self.add_toolbar()
-        # 创建Splitter，用于调整树形控件和场景视图的宽度
-        splitter = QSplitter(Qt.Horizontal, self)
-        self.layout.addWidget(splitter)
 
-        # 创建场景和视图，并添加到Splitter中
-        
-        self.view.setAcceptDrops(True)  # 启用接受拖放
         # 创建工具栏
-        
+        self.add_toolbar()
 
+        # 创建垂直Splitter用于主体内容和日志窗口
+        vertical_splitter = QSplitter(Qt.Vertical, self)
+        self.layout.addWidget(vertical_splitter)
+
+        # 创建水平Splitter用于树形控件和场景视图
+        splitter = QSplitter(Qt.Horizontal, self)
+        vertical_splitter.addWidget(splitter)  # 添加到垂直Splitter
+
+        self.view.setAcceptDrops(True)  
         splitter.addWidget(self.view)
 
-        # 创建树形控件
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabel("Node list")
         self.tree.setStyleSheet("QHeaderView::section{background-color: #313131; color: white; border: 0px; font-size: 16px; font-family: Consolas;}")
-        self.tree.setDragEnabled(True)  # 启用拖放
+        self.tree.setDragEnabled(True)  
         splitter.addWidget(self.tree)
 
-        self.tree.itemDoubleClicked.connect(self.add_selected_model_node)  # 双击添加
-        self.tree.startDrag = self.start_drag  # 重写startDrag方法
+        self.tree.itemDoubleClicked.connect(self.add_selected_model_node)
+        self.tree.startDrag = self.start_drag
 
-        # 设置字体
         current_font = QApplication.font()
         new_font = QFont(current_font.family(), 16)
         self.tree.setFont(new_font)        
         self.tree.setStyleSheet("QTreeWidget::item{margin: 1px;}")
         self.populate_tree()
+
+        # 将日志窗口添加到垂直Splitter
+
+
+        log_handler = QTextEditLogger(self.log_window)
+        log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(log_handler)
+        logging.getLogger().setLevel(logging.INFO)
+
+        vertical_splitter.addWidget(self.log_window)  # 添加日志窗口
+
         self.show()
 
     def populate_tree(self):
@@ -143,9 +170,13 @@ class ComfyUIEditor(QWidget):
         run_action.triggered.connect(self.view.run)
         toolbar.addAction(run_action)
 
-        close_action = QAction("Close", self)
+        close_action = QAction("Exit", self)
         close_action.triggered.connect(self.close)
         toolbar.addAction(close_action)
+
+        toggle_log_action = QAction("Toggle Log", self)
+        toggle_log_action.triggered.connect(self.toggle_log_window)
+        toolbar.addAction(toggle_log_action)
         
     def load_file(self):
         defalut_path = "./presets"
@@ -161,4 +192,10 @@ class ComfyUIEditor(QWidget):
             self.view.save(file_path)
             QMessageBox.information(self, "Save", f"Saving preset to {file_path}")
 
-
+    def toggle_log_window(self):
+        # 切换日志窗口的可见性
+        if self.log_window.isVisible():
+            self.log_window.hide()
+        else:
+            self.log_window.show()
+        

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QGraphicsItem, QGraphicsDropShadowEffect, QGraphic
 from ComfyUI.editor.node_port import InputPort, OutputPort, ParamPort, BoolPort, NodePort
 from ComfyUI.editor.node import Node
 from ComfyUI.editor.config import EditorConfig, NodeConfig
+import logging
 
 
 class DataFlowNode(Node):
@@ -62,7 +63,6 @@ class InputNode(DataFlowNode):
         for downstream_port in self.output_ports[0].connected_ports:
             if downstream_port.parent_node.__class__.__name__ != "OutputNode":
                 downstream_port.parent_node.input_path = self.input_path
-        print("Input Path:", self.input_path)
 
     def save(self) -> dict:
         data = {}
@@ -92,7 +92,6 @@ class OutputNode(DataFlowNode):
     
     def run(self):
         self.output_path = self.param_ports[0].port_value
-        print("Output Path:", self.output_path)
 
     def save(self) -> dict:
         data = {}

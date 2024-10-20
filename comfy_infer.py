@@ -127,6 +127,8 @@ class ComfyMSST:
                 logger.warning('Cannot process track: {}'.format(path))
                 logger.warning('Error message: {}'.format(str(e)))
 
+        torch.cuda.empty_cache()        
+
     def separate(self, input_file):
         instruments = self.config.training.instruments.copy()
         if self.config.training.target_instrument is not None:
@@ -283,7 +285,7 @@ class ComfyVR(Separator):
             if os.path.isfile(file_path) and file_name.lower().endswith(('.wav', '.flac', '.mp3')):
                 self.logger.info(f"Processing file: {file_path}")
                 file_output_files = self.model_instance.VRseparate(file_path)
-                self.model_instance.clear_gpu_cache()
+                # self.model_instance.clear_gpu_cache()
                 self.model_instance.clear_file_specific_paths()
 
                 self.logger.info(f"Save VR results for {file_path}")
@@ -292,6 +294,7 @@ class ComfyVR(Separator):
                     self.model_instance.process_stem(inst, file_output_files[inst], file_output_files[inst])
 
         self.logger.debug(f"Separation process for folder: {folder_path} completed.")
+        torch.cuda.empty_cache()
 
 class ComfyVRSeparator(VRSeparator):
     def __init__(self, common_config, arch_config):
