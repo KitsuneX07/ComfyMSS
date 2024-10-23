@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     io_params = parser.add_argument_group("Separation I/O Params")
     io_params.add_argument("-i", "--input_folder", type=str, help="Folder with mixtures to process. [required]")
-    io_params.add_argument("-o", "--output_folder", default="results", help="Folder to store separated files. str for single folder, dict with instrument keys for multiple folders. Example: --output_folder=results or --output_folder=\"{'vocals': 'results/vocals', 'instrumental': 'results/instrumental'}\"")
+    io_params.add_argument("-o", "--output_folder", type=dict, default="results", help="Folder to store separated files. str for single folder, dict with instrument keys for multiple folders. Example: --output_folder=results or --output_folder=\"{'vocals': 'results/vocals', 'instrumental': 'results/instrumental'}\"")
     io_params.add_argument("--output_format", choices=['wav', 'flac', 'mp3'], default="wav", help="Output format for separated files (default: %(default)s). Example: --output_format=wav")
 
     model_params = parser.add_argument_group("Model Params")

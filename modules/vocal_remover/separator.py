@@ -256,7 +256,7 @@ class Separator:
 
     def del_cache(self):
         self.logger.debug("Running garbage collection...")
-        # gc.collect()
+        gc.collect()
         if self.torch_device == torch.device("mps"):
             self.logger.debug("Clearing MPS cache...")
             torch.mps.empty_cache()

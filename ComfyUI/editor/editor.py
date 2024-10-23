@@ -3,23 +3,13 @@ from PySide6.QtGui import QFont, QDrag, QAction, QFontDatabase
 from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine
 from view import ComfyUIView
 from scene import ComfyUIScene
+from monitor import MonitorPage
 from nodes.model_node import MSSTModelNode, VRModelNode
 from nodes.data_flow_node import InputNode, OutputNode
 import json
 import os
 import shutil
 import logging
-
-
-class QTextEditLogger(logging.Handler):
-    def __init__(self, text_edit):
-        super().__init__()
-        self.text_edit = text_edit
-
-    def emit(self, record):
-        msg = self.format(record)
-        self.text_edit.append(msg)
-        self.text_edit.ensureCursorVisible()
 
 
 class ComfyUIEditor(QWidget):
@@ -45,11 +35,9 @@ class ComfyUIEditor(QWidget):
         self.setGeometry(300, 200, 1440, 1080)
 
         self.scene = ComfyUIScene()
-        self.log_window = QTextEdit(self)
-        self.log_window.setReadOnly(True)
-        self.log_window.setStyleSheet("color: white;")  # 设置字体为白色
-        self.log_window.setFont(QFont('Courier New', 10))  # 设置等宽字体
-        self.view = ComfyUIView(self.scene, self.log_window, self)
+        self.monitor_page = MonitorPage(refresh_rate=1000)
+        self.monitor_page.setFont(QApplication.font())
+        self.view = ComfyUIView(self.scene, self)
 
         current_font = QApplication.font()
         current_font.setPointSize(16)
@@ -89,15 +77,7 @@ class ComfyUIEditor(QWidget):
         self.tree.setStyleSheet("QTreeWidget::item{margin: 1px;}")
         self.populate_tree()
 
-        # 将日志窗口添加到垂直Splitter
-
-
-        log_handler = QTextEditLogger(self.log_window)
-        log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        logging.getLogger().addHandler(log_handler)
-        logging.getLogger().setLevel(logging.INFO)
-
-        vertical_splitter.addWidget(self.log_window)  # 添加日志窗口
+        vertical_splitter.addWidget(self.monitor_page)
 
         self.show()
 
@@ -112,6 +92,7 @@ class ComfyUIEditor(QWidget):
                 model_item.setText(0, model["name"])
                 model["model_class"] = category  # 添加model_class信息到模型数据
                 model_item.setData(0, Qt.UserRole, model)
+                model_item.setToolTip(0, model["name"])
 
         vr_category_item = QTreeWidgetItem(self.tree)
         vr_category_item.setText(0, "vr_models")
@@ -121,6 +102,7 @@ class ComfyUIEditor(QWidget):
             model_item = QTreeWidgetItem(vr_category_item)
             model_item.setText(0, model_name)
             model_item.setData(0, Qt.UserRole, model)
+            model_item.setToolTip(0, model["name"])
 
         # 添加输入和输出节点
         io_category_item = QTreeWidgetItem(self.tree)
@@ -173,10 +155,6 @@ class ComfyUIEditor(QWidget):
         close_action = QAction("Exit", self)
         close_action.triggered.connect(self.close)
         toolbar.addAction(close_action)
-
-        toggle_log_action = QAction("Toggle Log", self)
-        toggle_log_action.triggered.connect(self.toggle_log_window)
-        toolbar.addAction(toggle_log_action)
         
     def load_file(self):
         defalut_path = "./presets"
@@ -191,11 +169,4 @@ class ComfyUIEditor(QWidget):
         if file_path:
             self.view.save(file_path)
             QMessageBox.information(self, "Save", f"Saving preset to {file_path}")
-
-    def toggle_log_window(self):
-        # 切换日志窗口的可见性
-        if self.log_window.isVisible():
-            self.log_window.hide()
-        else:
-            self.log_window.show()
         

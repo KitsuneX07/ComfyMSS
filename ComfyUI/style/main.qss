@@ -11,10 +11,14 @@ QMainWindow {
 QCheckBox {
 	padding:2px;
 }
+QCheckBox::indicator {
+	width: 16px;
+	height: 16px;
+}
 QCheckBox:hover {
 	border:1px solid rgb(255,150,60);
 	border-radius:4px;
-	padding: 1px;
+	padding: 2px;
 	background-color:qlineargradient(spread:pad, x1:0.5, y1:1, x2:0.5, y2:0, stop:0 rgba(190, 90, 50, 50), stop:1 rgba(250, 130, 40, 50));
 }
 QCheckBox::indicator:checked {

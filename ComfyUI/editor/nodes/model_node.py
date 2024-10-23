@@ -18,13 +18,14 @@ from ComfyUI.editor.config import EditorConfig, NodeConfig
 from ComfyUI.editor.node_port import InputPort, OutputPort, ParamPort, BoolPort, NodePort
 from ComfyUI.editor.node import Node
 from ComfyUI.editor.nodes.data_flow_node import OutputNode, InputNode
-from inference.comfy_infer import ComfyMSST, ComfyVR
 
 os.chdir(os.path.join(os.getcwd(), '../../'))
 
 TEMP_PATH = "tmpdir"
+PYTHON = "D:/Anaconda/envs/msst/python.exe"
 
 import logging
+import subprocess
 
 
 class ModelNode(Node):
@@ -69,6 +70,8 @@ class ModelNode(Node):
         self._friendly_name = self._model_name[:30] + '...' if len(self._model_name) > 30 else self._model_name
 
         self._title_line2.setPlainText(self._friendly_name)
+        self._title_line2.setFont(QFont(current_font.family(), 12))
+        self._title_line2.setToolTip(self._model_name)
         # for title_line in [self._title_line1, self._title_line2]:
         #     title_line.setFont(self._title_font)
         #     title_line.setDefaultTextColor(self._title_color)
@@ -209,7 +212,7 @@ class MSSTModelNode(ModelNode):
         # print('param_ports:', self.param_ports)
         # print('bool_ports:', self.bool_ports)
 
-    def run(self):
+    def update_params(self):
         logging.info(f"Running MSST model node {self._model_name}...")
         logging.info("Updating parameters...")
         for param_port in self.param_ports:
@@ -234,21 +237,31 @@ class MSSTModelNode(ModelNode):
         logging.info(f"store_dirs: {self.store_dirs}")
         logging.info(f"input_path: {self.input_path}")
 
-        msst_separate = ComfyMSST(
-            model_type=self._model_type,
-            config_path=self._config_path,
-            device='auto',
-            device_ids=[0],
-            model_path=os.path.join("./pretrain", self._model_class, self._model_name),
-            output_format=self.get_selected_format(),
-            store_dirs=self.store_dirs,
-            use_tta=use_tta,
-            debug=True
-        )
+        self.params = {
+            "input_path": self.input_path,
+            "model_type": self._model_type,
+            "config_path": self._config_path,
+            "model_path": os.path.join("pretrain", self._model_class, self._model_name),
+            "output_format": self.get_selected_format(),
+            "store_dirs": self.store_dirs,
+            "use_tta": use_tta,
+        }
 
-        msst_separate.process_folder(input_folder=self.input_path)
-        logging.info("Inference completed successfully.")
-        msst_separate.del_cache()
+        # msst_separate = ComfyMSST(
+        #     model_type=self._model_type,
+        #     config_path=self._config_path,
+        #     device='auto',
+        #     device_ids=[0],
+        #     model_path=os.path.join("./pretrain", self._model_class, self._model_name),
+        #     output_format=self.get_selected_format(),
+        #     store_dirs=self.store_dirs,
+        #     use_tta=use_tta,
+        #     debug=True
+        # )
+
+        # msst_separate.process_folder(input_folder=self.input_path)
+        # logging.info("Inference completed successfully.")
+        # msst_separate.del_cache()
 
     def generate_output_path(self) -> None:
         for output_port in self.output_ports:
@@ -257,7 +270,7 @@ class MSSTModelNode(ModelNode):
                     self.store_dirs[output_port.port_label] = []
                     parent_node = connected_port.parent_node
                     if parent_node.__class__.__name__ == "OutputNode":
-                        parent_node.run()
+                        parent_node.update_params()
                         self.store_dirs[output_port.port_label].append(parent_node.output_path)
                     else:
                         path = os.path.join(TEMP_PATH, f"model_node_{parent_node.index}", output_port.port_label)
@@ -308,46 +321,55 @@ class VRModelNode(ModelNode):
             BoolPort("Enable Post Process", default_value=False)
         ]
 
-    def run(self):
+    def update_params(self):
         try:
             logging.info("Updating parameters...")
-            
+            self.generate_output_path()
+            logging.info(f"Input path: {self.input_path}")
+            logging.info(f"Output path: {self.store_dirs}")
 
             # 更新配置参数
-            vr_params = {
-                "batch_size": int(self.find_port_value("Batch Size")),
+            self.params = {
+                "model_file": f"pretrain/VR_Models/{self._model_name}",
+                "input_path": self.input_path,
+                "output_folder": self.store_dirs,
+                "output_format": self.get_selected_format(),
+                "invert_using_spec": self.find_port_value("Invert Spect"),
+                "use_cpu": self.find_port_value("Use CPU"),
+                "vr_params": {
+                    "batch_size": int(self.find_port_value("Batch Size")),
                 "window_size": int(self.find_port_value("Window Size")),
                 "aggression": int(self.find_port_value("Aggression")),
                 "enable_tta": self.find_port_value("Enable Tta"),
                 "enable_post_process": self.find_port_value("Enable Post Process"),
                 "post_process_threshold": float(self.find_port_value("Post Process Threshold")),
-                "high_end_process": self.find_port_value("High End Process")
+                "high_end_process": self.find_port_value("High End Process"),
+                }
             }
-            logging.info(f"VR parameters: {vr_params}")
+            logging.info(f"VR parameters: {self.params}")
 
-            self.generate_output_path()
-            logging.info(f"Input path: {self.input_path}")
-            logging.info(f"Output path: {self.store_dirs}")
+            # output_folders = ' '.join(
+            #     [f"--output_folder_{label} {' '.join(paths)}" for label, paths in self.store_dirs.items()]
+            # )
 
-            invert_spect = self.find_port_value("Invert Spect")
-            logging.info(f"Invert Spect: {invert_spect}")
+            # invert_spect = self.find_port_value("Invert Spect")
+            # logging.info(f"Invert Spect: {invert_spect}")
 
-            use_cpu = self.find_port_value("Use CPU")
+            # use_cpu = self.find_port_value("Use CPU")
 
-            vr_separator = ComfyVR(
-                model_file=f"pretrain/VR_Models/{self._model_name}",
-                output_format=self.get_selected_format(),
-                invert_using_spec=invert_spect,
-                use_cpu=use_cpu,
-                vr_params=vr_params,
-                output_dir=self.store_dirs,
-                debug=True
-            )
+            # vr_separator = ComfyVR(
+            #     model_file=f"pretrain/VR_Models/{self._model_name}",
+            #     output_format=self.get_selected_format(),
+            #     invert_using_spec=invert_spect,
+            #     use_cpu=use_cpu,
+            #     vr_params=vr_params,
+            #     output_dir=self.store_dirs,
+            #     debug=True
+            # )
 
-            vr_separator.process_folder(self.input_path)
-            logging.info("Inference completed successfully.")
-            vr_separator.del_cache()
-
+            # vr_separator.process_folder(self.input_path)
+            # logging.info("Inference completed successfully.")
+            # vr_separator.del_cache()
         except Exception as e:
             logging.error(f"Error during VR model execution: {e}")
 
@@ -362,7 +384,7 @@ class VRModelNode(ModelNode):
                     self.store_dirs[output_port.port_label] = []
                     parent_node = connected_port.parent_node
                     if parent_node.__class__.__name__ == "OutputNode":
-                        parent_node.run()
+                        parent_node.update_params()
                         self.store_dirs[output_port.port_label].append(parent_node.output_path)
                     else:
                         path = os.path.join(TEMP_PATH, f"model_node_{parent_node.index}", output_port.port_label)

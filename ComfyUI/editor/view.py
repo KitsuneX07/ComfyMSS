@@ -15,10 +15,9 @@ TEMP_PATH = "tmpdir"
 
 
 class ComfyUIView(QGraphicsView):
-    def __init__(self, scene, log_window, parent=None):
+    def __init__(self, scene, parent=None):
         super().__init__(parent)
         self._scene = scene
-        self.log_window = log_window
         self.edges = []
         self.nodes = []
         self.input_node = None
@@ -271,24 +270,16 @@ class ComfyUIView(QGraphicsView):
         context_menu.exec(event.globalPos())
 
     def run(self):
-
-        self.inference_thread = None
-
-        shutil.rmtree(TEMP_PATH, ignore_errors=True)
-
-        if self.inference_thread is not None and self.inference_thread.isRunning():
-            logging.error('Previous thread is still running.')
-            return
-        
+        shutil.rmtree(TEMP_PATH, ignore_errors=True)            
         self.inference_thread = InferenceThread(self.input_node)
-        self.inference_thread.log_signal.connect(self.add_log)
-
         # 启动线程
+        self.inference_thread.finished.connect(self.inference_thread.deleteLater)
         self.inference_thread.start()
+        self.inference_thread.finished.connect(self.on_thread_finished)
 
-    def add_log(self, message):
-        self.log_window.append(message)
-        self.log_window.ensureCursorVisible()    
+        
+    def on_thread_finished(self):
+        print('Thread finished.')
             
     def save(self, file_path:str) -> None:
         data = {}

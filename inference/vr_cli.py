@@ -2,8 +2,12 @@ import argparse
 import warnings
 import logging
 from time import time
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from modules.vocal_remover.separator import Separator
 from utils.logger import get_logger
+
 
 def vr_inference(args):
     logger = get_logger(console_level=logging.INFO)

@@ -58,7 +58,7 @@ class InputNode(DataFlowNode):
         output_port.setPos(self._node_width - output_port._port_width - self.port_padding,
                            self.title_height + self.port_padding * 2)
 
-    def run(self):
+    def update_params(self):
         self.input_path = self.param_ports[0].port_value
         for downstream_port in self.output_ports[0].connected_ports:
             if downstream_port.parent_node.__class__.__name__ != "OutputNode":
@@ -90,7 +90,7 @@ class OutputNode(DataFlowNode):
         param_port.add_to_parent_node(self, self._scene)
         param_port.setPos(self.port_padding * 2 + input_port._port_width, self.title_height + self.port_padding * 2)
     
-    def run(self):
+    def update_params(self):
         self.output_path = self.param_ports[0].port_value
 
     def save(self) -> dict:
