@@ -370,3 +370,8 @@ class ComfyUIView(QGraphicsView):
                 
                 edge = NodeEdge(source_port, des_port, self._scene)
                 self.edges.append(edge)
+
+    def interrupt_inference(self):
+        self.inference_thread.quit()
+        self.inference_thread.wait()
+        print('Thread terminated.')

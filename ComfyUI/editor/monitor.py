@@ -42,12 +42,16 @@ class MonitorPage(QWidget):
         self.layout.addWidget(self.vram_monitor)
         self.layout.addItem(spacer)
 
-        pynvml.nvmlInit()  # Initialize NVML
-        self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # Assuming single GPU
+        try:
+            pynvml.nvmlInit()  # Initialize NVML
+            self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # Assuming single GPU
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_values)
-        self.timer.start(refresh_rate)
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self.update_values)
+            self.timer.start(refresh_rate)
+        except pynvml.NVMLError as error:
+            print(f"NVML error: {error}")
+            pass
 
     @Slot()
     def update_values(self):

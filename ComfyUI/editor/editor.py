@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication, QLabel, QApplication, QToolBar, QFileDialog, QMessageBox, QTextEdit, QDockWidget
-from PySide6.QtGui import QFont, QDrag, QAction, QFontDatabase
-from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem, QApplication, QLabel, QApplication, QToolBar, QFileDialog, QMessageBox, QTextEdit, QHBoxLayout, QSpacerItem, QSizePolicy
+from PySide6.QtGui import QFont, QDrag, QAction, QFontDatabase, QIcon
+from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine, QSize
 from view import ComfyUIView
 from scene import ComfyUIScene
 from monitor import MonitorPage
@@ -51,21 +51,17 @@ class ComfyUIEditor(QWidget):
         # 创建工具栏
         self.add_toolbar()
 
-        # 创建垂直Splitter用于主体内容和日志窗口
-        vertical_splitter = QSplitter(Qt.Vertical, self)
-        self.layout.addWidget(vertical_splitter)
-
         # 创建水平Splitter用于树形控件和场景视图
         splitter = QSplitter(Qt.Horizontal, self)
-        vertical_splitter.addWidget(splitter)  # 添加到垂直Splitter
+        self.layout.addWidget(splitter)
 
-        self.view.setAcceptDrops(True)  
+        self.view.setAcceptDrops(True)
         splitter.addWidget(self.view)
 
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabel("Node list")
         self.tree.setStyleSheet("QHeaderView::section{background-color: #313131; color: white; border: 0px; font-size: 16px; font-family: Consolas;}")
-        self.tree.setDragEnabled(True)  
+        self.tree.setDragEnabled(True)
         splitter.addWidget(self.tree)
 
         self.tree.itemDoubleClicked.connect(self.add_selected_model_node)
@@ -73,13 +69,15 @@ class ComfyUIEditor(QWidget):
 
         current_font = QApplication.font()
         new_font = QFont(current_font.family(), 16)
-        self.tree.setFont(new_font)        
+        self.tree.setFont(new_font)
         self.tree.setStyleSheet("QTreeWidget::item{margin: 1px;}")
         self.populate_tree()
 
-        vertical_splitter.addWidget(self.monitor_page)
+        # 将MonitorPage添加到布局中，并设置固定高度
+        self.monitor_page.setFixedHeight(200)
+        self.layout.addWidget(self.monitor_page)
 
-        self.show()
+        self.showMaximized()
 
     def populate_tree(self):
         # 填充树形控件
@@ -138,23 +136,92 @@ class ComfyUIEditor(QWidget):
         result = drag.exec(Qt.MoveAction)
         
     def add_toolbar(self):
-        toolbar = QToolBar()
-        self.layout.addWidget(toolbar)
-        open_action = QAction("Open", self)
-        open_action.triggered.connect(self.load_file)
-        toolbar.addAction(open_action)
+        # toolbar = QToolBar("Comfy MSS Editor", self)
+        # toolbar.setStyleSheet("QToolBar { height: 30px; }")
+        # toolbar_label = QLabel("Comfy MSS Editor")
+        # toolbar_label.setStyleSheet("color: white;")
+        # toolbar.addWidget(toolbar_label)
+        # toolbar.setMaximumHeight(30)
+        # self.layout.addWidget(toolbar)
+        # open_action = QAction("Open", self)
+        # open_action.triggered.connect(self.load_file)
+        # toolbar.addAction(open_action)
 
-        save_action = QAction("Save", self)
-        save_action.triggered.connect(self.save_file)
-        toolbar.addAction(save_action)
+        # save_action = QAction("Save", self)
+        # save_action.triggered.connect(self.save_file)
+        # toolbar.addAction(save_action)
         
-        run_action = QAction("Run", self)
-        run_action.triggered.connect(self.view.run)
-        toolbar.addAction(run_action)
+        # run_action = QAction("Run", self)
+        # run_action.triggered.connect(self.view.run)
+        # toolbar.addAction(run_action)
 
-        close_action = QAction("Exit", self)
+        # close_action = QAction("Exit", self)
+        # close_action.triggered.connect(self.close)
+        # toolbar.addAction(close_action)
+
+        toolbarWidget = QWidget(self)
+        layout = QHBoxLayout()
+        toolbarWidget.setLayout(layout)
+
+        label = QLabel("Comfy MSS Editor")
+        label.setStyleSheet("color: white;")
+
+        toolbar1 = QToolBar()
+        toolbar2 = QToolBar()
+        toolbar3 = QToolBar()
+        for toolbar in [toolbar1, toolbar2, toolbar3]:
+            toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #2A2A2A;
+                border-radius: 10px;
+                padding: 5px;
+            }
+            QToolBar QToolButton {
+                border: none;
+                padding: 5px;
+                margin: 2px;
+            }
+            QToolBar QToolButton:hover {
+                background-color: rgba(255, 255, 255, 30);
+                border-radius: 5px;
+            }
+            QToolBar QToolButton:pressed {
+                background-color: rgba(255, 255, 255, 50);
+            }
+            """)
+
+        open_action = QAction(QIcon("ComfyUI/style/icons/open.svg"), "", self)
+        open_action.setToolTip("loading an existing preset")
+        open_action.triggered.connect(self.load_file)
+        toolbar1.addAction(open_action)
+
+        save_action = QAction(QIcon("ComfyUI/style/icons/save.svg"), "", self)
+        save_action.setToolTip("saving the current preset to disk")
+        save_action.triggered.connect(self.save_file)
+        toolbar1.addAction(save_action)
+
+        run_action = QAction(QIcon("ComfyUI/style/icons/run.svg"), "", self)
+        run_action.setToolTip("running the current editor page")
+        run_action.triggered.connect(self.view.run)
+        toolbar2.addAction(run_action)
+
+        interrupt_action = QAction(QIcon("ComfyUI/style/icons/interrupt.svg"), "", self)
+        interrupt_action.setToolTip("interrupting the current running process")
+        interrupt_action.triggered.connect(self.view.interrupt_inference)
+        toolbar2.addAction(interrupt_action)
+
+        close_action = QAction(QIcon("ComfyUI/style/icons/exit.svg"), "", self)
+        close_action.setToolTip("closing the editor")
         close_action.triggered.connect(self.close)
-        toolbar.addAction(close_action)
+        toolbar3.addAction(close_action)
+
+        layout.addWidget(label)
+        layout.addWidget(toolbar1)
+        layout.addWidget(toolbar2)
+        layout.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        layout.addWidget(toolbar3)
+
+        self.layout.insertWidget(0, toolbarWidget)
         
     def load_file(self):
         defalut_path = "./presets"

@@ -498,3 +498,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
 	color:rgb(81,72,65);
 	background-color: #ffffff;
 }
+QToolTip {
+    background-color: #212121;
+    border: 1px solid #888;
+    border-radius: 10px;
+    padding: 2px;
+}
