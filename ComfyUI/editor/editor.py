@@ -136,29 +136,6 @@ class ComfyUIEditor(QWidget):
         result = drag.exec(Qt.MoveAction)
         
     def add_toolbar(self):
-        # toolbar = QToolBar("Comfy MSS Editor", self)
-        # toolbar.setStyleSheet("QToolBar { height: 30px; }")
-        # toolbar_label = QLabel("Comfy MSS Editor")
-        # toolbar_label.setStyleSheet("color: white;")
-        # toolbar.addWidget(toolbar_label)
-        # toolbar.setMaximumHeight(30)
-        # self.layout.addWidget(toolbar)
-        # open_action = QAction("Open", self)
-        # open_action.triggered.connect(self.load_file)
-        # toolbar.addAction(open_action)
-
-        # save_action = QAction("Save", self)
-        # save_action.triggered.connect(self.save_file)
-        # toolbar.addAction(save_action)
-        
-        # run_action = QAction("Run", self)
-        # run_action.triggered.connect(self.view.run)
-        # toolbar.addAction(run_action)
-
-        # close_action = QAction("Exit", self)
-        # close_action.triggered.connect(self.close)
-        # toolbar.addAction(close_action)
-
         toolbarWidget = QWidget(self)
         layout = QHBoxLayout()
         toolbarWidget.setLayout(layout)
