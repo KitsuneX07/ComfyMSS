@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QMimeData, QByteArray, QPoint, QLine, QSize
 from view import ComfyUIView
 from scene import ComfyUIScene
 from monitor import MonitorPage
+from download_page import DownloadPage
 from nodes.model_node import MSSTModelNode, VRModelNode
 from nodes.data_flow_node import InputNode, OutputNode
 import json
@@ -76,6 +77,7 @@ class ComfyUIEditor(QWidget):
         # 将MonitorPage添加到布局中，并设置固定高度
         self.monitor_page.setFixedHeight(200)
         self.layout.addWidget(self.monitor_page)
+        self.download_page = None
 
         self.showMaximized()
 
@@ -187,6 +189,11 @@ class ComfyUIEditor(QWidget):
         interrupt_action.triggered.connect(self.view.interrupt_inference)
         toolbar2.addAction(interrupt_action)
 
+        download_action = QAction(QIcon("ComfyUI/style/icons/download.svg"), "", self)
+        download_action.setToolTip("downloading models")
+        download_action.triggered.connect(self.show_download_page)
+        toolbar2.addAction(download_action)
+
         close_action = QAction(QIcon("ComfyUI/style/icons/exit.svg"), "", self)
         close_action.setToolTip("closing the editor")
         close_action.triggered.connect(self.close)
@@ -213,4 +220,15 @@ class ComfyUIEditor(QWidget):
         if file_path:
             self.view.save(file_path)
             QMessageBox.information(self, "Save", f"Saving preset to {file_path}")
+
+    def show_download_page(self):
+        if not self.download_page:
+            self.download_page = DownloadPage()
+            self.download_page.setFont(self.font())
+        self.download_page.show()
         
+    def closeEvent(self, event):
+
+        if self.download_page is not None and self.download_page.isVisible():
+            self.download_page.close()
+        super().closeEvent(event)

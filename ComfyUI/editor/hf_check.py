@@ -3,7 +3,7 @@ import time
 
 urls = {
     "huggingface_main": "https://huggingface.co",
-    "huggingface_mirror": "https://hf-mirror.com"
+    "huggingface_mirror": "https://hf-mirror.com",
 }
 
 def check_url(url):
@@ -24,10 +24,12 @@ def choose_best_site():
     main_status, main_time = check_url(urls["huggingface_main"])
     if main_status:
         available_sites["huggingface_main"] = main_time
+        print(f"Main site is accessible with response time: {main_time:.4f} seconds")
     
     mirror_status, mirror_time = check_url(urls["huggingface_mirror"])
     if mirror_status:
         available_sites["huggingface_mirror"] = mirror_time
+        print(f"Mirror site is accessible with response time: {mirror_time:.4f} seconds")
     
     if not available_sites:
         return "Error: Neither site is accessible", None, None

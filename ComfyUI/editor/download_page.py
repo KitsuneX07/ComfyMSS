@@ -1,192 +1,165 @@
-import os
 import sys
-import subprocess
+import os
+os.chdir(os.path.join(os.path.dirname(__file__), "..", ".."))
 import json
-from main import get_darkModePalette, load_stylesheet
-from hf_check import choose_best_site
+import webbrowser
+from huggingface_hub import hf_hub_url
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel, QProgressBar, QComboBox, QHBoxLayout, QMessageBox
+from PySide6.QtCore import Qt, QFile, QSize
+from PySide6.QtGui import QIcon
+from thread import DownloadThread
 
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QGroupBox, QCheckBox, QButtonGroup, QComboBox, QMessageBox, QPushButton
-from PySide6.QtGui import QFontDatabase, QFont
-from PySide6.QtCore import Qt, QThread, Signal
 
-
-def get_system():
-    if sys.platform == 'win32':
-        aria2c_path = os.path.join(os.path.dirname(__file__), '..', '..', 'aria2', 'aria2-1.37.0-win-64bit-build1', 'aria2c.exe')
-        return 'windows', aria2c_path
-    elif sys.platform == 'darwin':
-        return 'mac', None
-    elif sys.platform == 'linux':
-        aria2c_path = os.path.join(os.path.dirname(__file__), '..', '..', 'aria2', 'aria2-1.37.0-aarch64-linux-android-build1', 'aria2c')
-        return 'linux', aria2c_path
-    else:
-        return None, None
-    
 class DownloadPage(QWidget):
     def __init__(self):
         super().__init__()
-        self.system, self.aria2c_path = get_system()
+        self.setWindowTitle("Download Manager")
+        self.setFixedWidth(400)
+
+        self.setStyleSheet("""
+            QWidget {
+                color: white;
+                background-color: #333;  /* 设置整体背景色为深色 */
+            }
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QLabel {
+                font-size: 14px;
+                color: white;
+            }
+            QComboBox {
+                color: white;
+                background-color: #444;
+                border: 1px solid #555;   
+                border-radius: 5px;
+                font-size: 13px; 
+            }
+        """)
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
         self.msst_model_data = self.load_json('./data/msst_model_map.json')
         self.vr_model_data = self.load_json('./data/vr_model_map.json')
-        self.setup_ui()
+
+        self.title = QLabel("Model Download Center")
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setStyleSheet("font-size: 20px; font-weight: bold;")
+
+        self.auto_download_label = QLabel("Auto Download")
+        self.auto_download_label.setAlignment(Qt.AlignCenter)
+        self.auto_download_label.setStyleSheet("font-size: 15px;")
+
+        self.model_type_combobox = QComboBox()
+        self.model_type_combobox.addItem("multi_stem_models")
+        self.model_type_combobox.addItem("single_stem_models")
+        self.model_type_combobox.addItem("vocal_models")
+        self.model_type_combobox.addItem("VR_Models")
+        self.model_type_combobox.setCurrentIndex(-1)
+
+        self.model_combobox = QComboBox()
+
+        self.model_type_combobox.currentIndexChanged.connect(self.on_model_type_changed)
+            
+        self.auto_download_button = QPushButton(QIcon("ComfyUI/style/icons/download.svg"), "Auto Download")
+        self.auto_download_button.setStyleSheet("font-size: 15px;")
+        self.auto_download_button.setIconSize(QSize(20, 20))
+        self.auto_download_button.setFixedWidth(150)
+        self.auto_download_button.clicked.connect(self.on_auto_download)
+
+        self.manual_download_button = QPushButton("Try Manual Download")
+        self.manual_download_button.setStyleSheet("font-size: 15px;")
+        self.manual_download_button.setIconSize(QSize(20, 20))
+        self.manual_download_button.setFixedWidth(200)
+        self.manual_download_button.clicked.connect(self.on_manual_download)
+
+
+        self.layout.addWidget(self.title)
+        self.layout.addWidget(self.auto_download_label)
+        self.layout.addWidget(self.model_type_combobox)
+        self.layout.addWidget(self.model_combobox)
+        button_layout1 = QHBoxLayout()
+        button_layout1.addStretch()
+        button_layout1.addWidget(self.auto_download_button)
+        button_layout1.addStretch()
+        self.layout.addLayout(button_layout1)
+        button_layout2 = QHBoxLayout()
+        button_layout2.addStretch()
+        button_layout2.addWidget(self.manual_download_button)
+        button_layout2.addStretch()
+        self.layout.addLayout(button_layout2)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.speed_label = QLabel("Download Speed: 0 KB/s")
+        self.speed_label.setAlignment(Qt.AlignCenter)
+        self.speed_label.setStyleSheet("font-size: 15px;")
+
+        self.layout.addWidget(self.progress_bar)
+        self.layout.addWidget(self.speed_label)
 
     def load_json(self, file_path):
         with open(file_path, 'r') as file:
             data = json.load(file)
-        return data    
-        
-    def setup_ui(self):
-        self.resize(400, 600)
-        self.setWindowTitle("ComfyMSS Model Downloader")
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
-        self.title = QLabel("ComfyMSS Model Downloader")
-        self.title.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.title)
-        group_box = QGroupBox()
-        group_layout = QVBoxLayout()
-        group_box.setLayout(group_layout)
+        return data
 
-        self.button_group = QButtonGroup()
-        self.button_group.setExclusive(True)
-
-        # 创建 multi_stem_models 复选框和组合框
-        multi_stem_checkbox = QCheckBox("multi_stem_models")
-        group_layout.addWidget(multi_stem_checkbox)
-        self.button_group.addButton(multi_stem_checkbox)
-        self.multi_stem_combobox = QComboBox()
-        self.multi_stem_combobox.setEnabled(False)  # 初始禁用
-        group_layout.addWidget(self.multi_stem_combobox)
-
-        # 创建 single_stem_models 复选框和组合框
-        single_stem_checkbox = QCheckBox("single_stem_models")
-        group_layout.addWidget(single_stem_checkbox)
-        self.button_group.addButton(single_stem_checkbox)
-        self.single_stem_combobox = QComboBox()
-        self.single_stem_combobox.setEnabled(False)  # 初始禁用
-        group_layout.addWidget(self.single_stem_combobox)
-
-        # 创建 vocal_models 复选框和组合框
-        vocal_model_checkbox = QCheckBox("vocal_models")
-        group_layout.addWidget(vocal_model_checkbox)
-        self.button_group.addButton(vocal_model_checkbox)
-        self.vocal_model_combobox = QComboBox()
-        self.vocal_model_combobox.setEnabled(False)  # 初始禁用
-        group_layout.addWidget(self.vocal_model_combobox)
-
-        # 创建VR_Models 复选框和组合框
-        vr_model_checkbox = QCheckBox("VR_Models")
-        group_layout.addWidget(vr_model_checkbox)
-        self.button_group.addButton(vr_model_checkbox)
-        self.vr_model_combobox = QComboBox()
-        self.vr_model_combobox.setEnabled(False)
-        group_layout.addWidget(self.vr_model_combobox)
-
-        for combo_box in [self.multi_stem_combobox, self.single_stem_combobox, self.vocal_model_combobox, self.vr_model_combobox]:
-            combo_box.setFixedHeight(40)
-
-        # 连接复选框的 stateChanged 信号到槽函数
-        multi_stem_checkbox.stateChanged.connect(self.refresh_state)
-        single_stem_checkbox.stateChanged.connect(self.refresh_state)
-        vocal_model_checkbox.stateChanged.connect(self.refresh_state)
-        vr_model_checkbox.stateChanged.connect(self.refresh_state)
-
-        self.layout.addWidget(group_box)
-
-        download_button = QPushButton("Download")
-        download_button.clicked.connect(self.download_model)
-        self.layout.addWidget(download_button)
-
-    def refresh_state(self):
-        if self.button_group.checkedButton() is None:
-            return
-        selected_checkbox = self.button_group.checkedButton()
-        if selected_checkbox.text() == "multi_stem_models":
-            for model in self.msst_model_data['multi_stem_models']:
-                self.multi_stem_combobox.addItem(model['name'])
-            self.multi_stem_combobox.setEnabled(True)
-            self.single_stem_combobox.clear()
-            self.single_stem_combobox.setEnabled(False)
-            self.vocal_model_combobox.clear()
-            self.vocal_model_combobox.setEnabled(False)
-            self.vr_model_combobox.clear()
-            self.vr_model_combobox.setEnabled(False)
-
-        elif selected_checkbox.text() == "single_stem_models":
-            for model in self.msst_model_data['single_stem_models']:
-                self.single_stem_combobox.addItem(model['name'])
-            self.single_stem_combobox.setEnabled(True)
-            self.multi_stem_combobox.clear()
-            self.multi_stem_combobox.setEnabled(False)
-            self.vocal_model_combobox.clear()
-            self.vocal_model_combobox.setEnabled(False)
-            self.vr_model_combobox.clear()
-            self.vr_model_combobox.setEnabled(False)
-
-        elif selected_checkbox.text() == "vocal_models":
-            for model in self.msst_model_data['vocal_models']:
-                self.vocal_model_combobox.addItem(model['name'])
-            self.vocal_model_combobox.setEnabled(True)
-            self.multi_stem_combobox.clear()
-            self.multi_stem_combobox.setEnabled(False)
-            self.single_stem_combobox.clear()
-            self.single_stem_combobox.setEnabled(False)
-            self.vr_model_combobox.clear()
-            self.vr_model_combobox.setEnabled(False)
-
-        elif selected_checkbox.text() == "VR_Models":
+    def on_model_type_changed(self):
+        self.model_combobox.clear()
+        model_type = self.model_type_combobox.currentText()
+        if model_type == "VR_Models":
             for model in self.vr_model_data:
-                self.vr_model_combobox.addItem(model)
-            self.vr_model_combobox.setEnabled(True)
-            self.multi_stem_combobox.clear()
-            self.multi_stem_combobox.setEnabled(False)
-            self.single_stem_combobox.clear()
-            self.single_stem_combobox.setEnabled(False)
-            self.vocal_model_combobox.clear()
-            self.vocal_model_combobox.setEnabled(False)
-        
-    def download_model(self):
-        if self.button_group.checkedButton() is None:
-            return
-        self.selected_checkbox = self.button_group.checkedButton()
-        self.check_thread = check_hf_thread()
-        self.check_thread.finished.connect(self.on_check_thread_finished)
-        self.check_thread.start()
-
-        for combobox in [self.multi_stem_combobox, self.single_stem_combobox, self.vocal_model_combobox]:
-            self.selected_model = combobox.currentText()
-            if self.selected_model:
-                break
-
-    def on_check_thread_finished(self):
-        self.best_site, self.response_time, self.download_site = self.check_thread.get_result()
-        if not self.download_site:
-            QMessageBox.critical(self, "Error", "No available download site")
-            return
-        self.url = self.download_site + '/'.join(['', 'model', self.selected_checkbox.text(), self.selected_model])
-        print(self.url)
-
-class check_hf_thread(QThread):
-    def __init__(self):
-        super().__init__()
-
-    def run(self):
-        best_site, response_time, download_site = choose_best_site()
-        if isinstance(best_site, str) and "Error" in best_site:
-            print(best_site)
+                self.model_combobox.addItem(model)
         else:
-            print(f"Best site: {best_site} with response time: {response_time:.4f} seconds, URL: {download_site}")
-            self.best_site = best_site
-            self.response_time = response_time  
-            self.download_site = download_site
+            for model in self.msst_model_data[model_type]:
+                self.model_combobox.addItem(model["name"])
 
-    def get_result(self):
-        return self.best_site, self.response_time, self.download_site        
+    def on_manual_download(self):
+        website = "https://r1kc63iz15l.feishu.cn/wiki/YrBkwwstBiRop8kDflZcVNHbnmc"
+        webbrowser.open(website)
 
+    def on_manual_download(self):
+        website = "https://r1kc63iz15l.feishu.cn/wiki/YrBkwwstBiRop8kDflZcVNHbnmc"
+        webbrowser.open(website)
+
+    def on_auto_download(self):
+        model_type = self.model_type_combobox.currentText()
+        model_name = self.model_combobox.currentText()
+        if model_type and model_name:
+            self.download_thread = DownloadThread(model_type, model_name)
+            self.download_thread.log_signal.connect(self.display_log)
+            self.download_thread.progress_signal.connect(self.update_progress)
+            self.download_thread.speed_signal.connect(self.update_speed)
+            self.download_thread.finished.connect(self.download_finished)
+            self.download_thread.start()
+        else:
+            self.display_log("请选择模型类型和模型名称！")
+
+    def download_finished(self):
+        self.display_log("Download completed!")
+        self.progress_bar.setValue(100)
+        self.download_thread.quit()
+        message_box = QMessageBox()
+        message_box.setText("Download completed!")
+
+    def update_progress(self, progress):
+        self.progress_bar.setValue(progress)
+
+    def update_speed(self, speed):
+        self.speed_label.setText(f"Download Speed: {speed:.2f} MB/s")
+
+    def display_log(self, message):
+        print(message)  # 可以根据需要将日志显示在 UI 的某个标签或文本框中
 
 if __name__ == "__main__":
-    app = QApplication([])
+    app = QApplication(sys.argv)
     os.chdir(os.path.join(os.path.dirname(__file__), "..", ".."))
-    download_page = DownloadPage()
-    download_page.show()
+    window = DownloadPage()
+    window.show()
     sys.exit(app.exec())
