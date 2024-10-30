@@ -75,8 +75,9 @@ class ComfyUIEditor(QWidget):
         self.populate_tree()
 
         # 将MonitorPage添加到布局中，并设置固定高度
-        self.monitor_page.setFixedHeight(200)
-        self.layout.addWidget(self.monitor_page)
+        # self.monitor_page.setFixedHeight(200)
+        # self.monitor_page.hide()
+        # self.layout.addWidget(self.monitor_page)
         self.download_page = None
 
         self.showMaximized()
@@ -139,6 +140,7 @@ class ComfyUIEditor(QWidget):
         
     def add_toolbar(self):
         toolbarWidget = QWidget(self)
+        toolbarWidget.setFixedHeight(50)
         layout = QHBoxLayout()
         toolbarWidget.setLayout(layout)
 
@@ -148,11 +150,12 @@ class ComfyUIEditor(QWidget):
         toolbar1 = QToolBar()
         toolbar2 = QToolBar()
         toolbar3 = QToolBar()
+
         for toolbar in [toolbar1, toolbar2, toolbar3]:
             toolbar.setStyleSheet("""
             QToolBar {
                 background-color: #2A2A2A;
-                border-radius: 10px;
+                border-radius: 5px;
                 padding: 5px;
             }
             QToolBar QToolButton {
@@ -168,6 +171,8 @@ class ComfyUIEditor(QWidget):
                 background-color: rgba(255, 255, 255, 50);
             }
             """)
+            toolbar.setIconSize(QSize(32, 32))
+            toolbar.setFixedHeight(45)
 
         open_action = QAction(QIcon("ComfyUI/style/icons/open.svg"), "", self)
         open_action.setToolTip("loading an existing preset")
@@ -228,7 +233,6 @@ class ComfyUIEditor(QWidget):
         self.download_page.show()
         
     def closeEvent(self, event):
-
         if self.download_page is not None and self.download_page.isVisible():
             self.download_page.close()
         super().closeEvent(event)

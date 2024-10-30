@@ -2,6 +2,8 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QHBoxL
 from PySide6.QtCore import Signal, Slot, QTimer, Qt
 from circular_progress import CircularProgress
 import pynvml
+import platform
+from torch import cuda, backends
 
 class MonitorWidget(QWidget):
     valueChanged = Signal(int)
@@ -38,8 +40,11 @@ class MonitorPage(QWidget):
         self.vram_monitor = MonitorWidget(label_text="VRAM Usage")
         spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
+        self.message_box = self.setup_message_box()
+
         self.layout.addWidget(self.gpu_monitor)
         self.layout.addWidget(self.vram_monitor)
+        self.layout.addWidget(self.message_box)
         self.layout.addItem(spacer)
 
         try:
@@ -71,6 +76,28 @@ class MonitorPage(QWidget):
 
         except pynvml.NVMLError as error:
             print(f"NVML error: {error}")
+
+    def setup_message_box(self):
+        os_name = platform.system()
+        os_version = platform.version()
+        machine = platform.machine()
+        cpu = platform.processor()
+        self.gpu = "No available GPU detected"
+        if cuda.is_available():
+            self.gpu = backends.cuda.get_device_name(0)
+        elif backends.mps.is_available():
+            self.gpu = "MPS"
+        
+        message_box = QWidget()
+        message_box.setStyleSheet("font-size: 15px; color: white;")
+        message_box_layout = QVBoxLayout(message_box)
+        message_box_layout.addWidget(QLabel(f"OS: {os_name} {os_version}"))
+        message_box_layout.addWidget(QLabel(f"Machine: {machine}"))
+        message_box_layout.addWidget(QLabel(f"CPU: {cpu}"))
+        message_box_layout.addWidget(QLabel(f"GPU: {self.gpu}"))
+
+        return message_box
+
 
 if __name__ == '__main__':
     app = QApplication([])
