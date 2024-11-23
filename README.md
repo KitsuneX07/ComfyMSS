@@ -4,7 +4,7 @@
 目前仅能作为dlc在[MSST-WebUI整合包](https://github.com/SUC-DriverOld/MSST-WebUI)使用。``git clone``对应分支最新代码或参考以下方法安装。
 
 将release中最新版的可执行文件放在项目根目录运行。无需额外安装依赖。
-若出现bug，可尝试从源码运行。
+若出现bug或者操作系统不支持，可尝试从源码运行或运行[nuitka_pack.py](https://github.com/SUC-DriverOld/MSST-WebUI/blob/main/nuitka_pack.py)自行打包。
 
 **[NOTICE]**
 如果你使用的是自己配置的环境**且**需要使用**日语**的界面，为确保翻译支持的完整性，请在项目的根目录打开终端并运行：
