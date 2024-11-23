@@ -3,6 +3,9 @@
 ## 安装
 目前仅能作为dlc在[MSST-WebUI整合包](https://github.com/SUC-DriverOld/MSST-WebUI)使用。``git clone``对应分支最新代码或参考以下方法安装。
 
+将release中最新版的可执行文件放在项目根目录运行。无需额外安装依赖。
+若出现bug，可尝试从源码运行。
+
 **[NOTICE]**
 如果你使用的是自己配置的环境**且**需要使用**日语**的界面，为确保翻译支持的完整性，请在项目的根目录打开终端并运行：
 ```
@@ -15,6 +18,7 @@ python ./ComfyUI/DownloadManager/fix_JP.py -a restore
 ```
 这样会将其恢复到原始状态，代价是有一些组件的文本可能是没有翻译的英文。
 如有任何问题，请提交issue。
+
 
 ## 使用
 
@@ -33,6 +37,7 @@ python ./ComfyUI/DownloadManager/fix_JP.py -a restore
 2. 发送到Aria2下载
 > 点击**发送到Aria2**按钮
 > 底层实现为将所有要下载的url发送到本地的Aria2 RPC端口
+> 可自定义本地的Aria2 RPC端口密钥。
 > 需要自行开启Aria2，如果不知道这是什么，可以[bing一下](https://cn.bing.com/search?q=aria2+rpc&qs=n&form=QBRE&sp=-1&lq=0&pq=aria2+rpc&sc=10-9&sk=&cvid=8B1B8ED0D20C47DB80BE562A95B66FBA&ghsh=0&ghacc=0&ghpl=)或者使用方法1下载
 > 多线程多进程
 
